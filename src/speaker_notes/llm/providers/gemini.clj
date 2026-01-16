@@ -1,0 +1,126 @@
+(ns speaker-notes.llm.providers.gemini
+  "Wrapper/Helper code for the GCP Gemini Vertex AI API LLM models"
+  (:require [clojure.tools.logging :as log]
+            [speaker-notes.config :as config]
+            [speaker-notes.llm.api :as api]
+            [speaker-notes.llm.providers.core :as providers.core])
+  (:import (com.google.genai Client)
+           (com.google.genai.types ThinkingConfig Tool)
+           (com.google.genai.types GenerateContentConfig GoogleSearch HttpOptions ThinkingConfig Tool)))
+
+
+;; ---- constants -------------------------------------------------------------
+
+(def gemini-3-pro-preview "gemini-3-pro-preview")
+
+(def reasoning-effort->thinking-budget
+  {:low    {gemini-3-pro-preview 16384}
+   :medium {gemini-3-pro-preview 24576}
+   :high   {gemini-3-pro-preview 32768}})
+
+(defn- get-thinking-budget ^long [^String model-name reasoning-effort]
+  (long (get-in reasoning-effort->thinking-budget [reasoning-effort model-name] 0)))
+
+(defn- run-inference-unsafe [wrapper system-prompt user-prompt]
+  (let [{:keys [client model-id max-output-tokens temperature tool thinking-config]} wrapper
+        prompt              (str system-prompt "\n" user-prompt)
+        cfg                 (-> (GenerateContentConfig/builder)
+                                (.temperature (float temperature))
+                                (.maxOutputTokens (int max-output-tokens))
+                                (.thinkingConfig thinking-config)
+                                (#(if tool
+                                    (do (.tools % (into-array Tool [tool])) %)
+                                    %))
+                                (.responseMimeType "text/plain")
+                                (.build))
+        resp                (.generateContent (.-models client) model-id prompt cfg)
+        result              (providers.core/extract-response (.text resp))
+
+        usage-opt           (.usageMetadata resp)
+        usage               (when (.isPresent usage-opt) (.get usage-opt))
+
+        input-tokens        (when usage (.promptTokenCount usage))
+        input-cached-tokens (when usage (.cachedContentTokenCount usage))
+        output-tokens       (when usage (.candidatesTokenCount usage))]
+
+    (when-not result
+      (log/error (format "JSON parsing failed for model %s. Raw content: %s..."
+                         model-id
+                         (subs (.text resp) 0 (min 500 (count (.text resp)))))))
+
+    {:result              result
+     :input_tokens        input-tokens
+     :input_cached_tokens input-cached-tokens
+     :output_tokens       output-tokens
+     :system_prompt       system-prompt
+     :user_prompt         user-prompt}))
+
+(defrecord ExampleGeminiVertexAI
+  [^Client client
+   ^String model-id
+   ^long max-output-tokens
+   ^double temperature
+   reasoning-effort
+   ^Tool tool
+   ^ThinkingConfig thinking-config]
+
+  api/LLM
+  (provider-name [_this] "GeminiVertexAI")
+  (get-model-id [_] model-id)
+
+  (run-inference [this system-prompt user-prompt]
+    (run-inference-unsafe this system-prompt user-prompt)
+    #_(try
+      (run-inference-unsafe this system-prompt user-prompt)
+      (catch Exception e
+        (log/error (str "Exception: " (.getMessage e)))
+        nil))))
+
+(defn make-example-gemini-vertexai
+  [{:keys [client
+           model-id
+           max-output-tokens
+           temperature
+           reasoning-effort
+           tools
+           timeout-seconds
+           project-id
+           location]
+    :or   {client            nil
+           model-id          gemini-3-pro-preview
+           max-output-tokens 65536
+           temperature       (float 0.0)
+           reasoning-effort  :medium
+           tools             nil
+           timeout-seconds   300
+           project-id        (config/env "GCP_PROJECT_ID")
+           location          "global"}
+    :as   args}]
+
+  (log/info (str "Initializing ExampleGeminiVertexAI LLM client wrapper with: args" args))
+
+  (let [tool            (when (and tools (some #{"web_search"} tools))
+                          (-> (Tool/builder)
+                              (.googleSearch (GoogleSearch/builder))
+                              (.build)))
+
+        thinking-budget (get-thinking-budget model-id reasoning-effort)
+        thinking-config (when (pos? thinking-budget)
+                          (log/info (format "Setting thinking budget for model-id=%s with %s effort to: %d tokens."
+                                            model-id (name reasoning-effort) thinking-budget))
+                          (-> (ThinkingConfig/builder)
+                              (.thinkingBudget (int thinking-budget))
+                              (.build)))
+
+        http-options    (-> (HttpOptions/builder)
+                            (.timeout (int timeout-seconds))
+                            (.build))
+        client          (or client
+                            (-> (Client/builder)
+                                (.vertexAI true)
+                                (#(if project-id (.project % project-id) %))
+                                (#(if location (.location % location) %))
+                                (.httpOptions http-options)
+                                (.build)))]
+
+    (->ExampleGeminiVertexAI client model-id max-output-tokens temperature reasoning-effort tool thinking-config)))

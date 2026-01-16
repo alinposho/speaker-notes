@@ -3,8 +3,13 @@
   :url "http://example.com/FIXME"
   :min-lein-version "2.0.0"
   :dependencies [[org.clojure/clojure "1.11.4"]
+                 [org.clojure/tools.logging "1.3.1"]
                  [cheshire "6.1.0"]
+                 [ch.qos.logback/logback-classic "1.5.18"]
                  [compojure "1.7.2"]
+                 [com.google.genai/google-genai "1.35.0"]
+                 [io.github.cdimascio/dotenv-java "3.0.2"]
+                 [org.slf4j/slf4j-api "2.0.17"]
                  [ring/ring-defaults "0.7.0"]]
   :plugins [[lein-ring "0.12.6"]]
   :ring {:handler speaker-notes.handler/app}
