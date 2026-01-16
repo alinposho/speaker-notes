@@ -37,11 +37,11 @@
         result              (providers.core/extract-response (.text resp))
 
         usage-opt           (.usageMetadata resp)
-        usage               (when (.isPresent usage-opt) (.get usage-opt))
+        usage               (.orElse usage-opt nil)
 
-        input-tokens        (when usage (.promptTokenCount usage))
-        input-cached-tokens (when usage (.cachedContentTokenCount usage))
-        output-tokens       (when usage (.candidatesTokenCount usage))]
+        input-tokens        (some-> usage (.promptTokenCount) (.orElse nil))
+        input-cached-tokens (some-> usage (.cachedContentTokenCount) (.orElse nil))
+        output-tokens       (some-> usage (.candidatesTokenCount) (.orElse nil))]
 
     (when-not result
       (log/error (format "JSON parsing failed for model %s. Raw content: %s..."
@@ -49,11 +49,12 @@
                          (subs (.text resp) 0 (min 500 (count (.text resp)))))))
 
     {:result              result
-     :input_tokens        input-tokens
-     :input_cached_tokens input-cached-tokens
-     :output_tokens       output-tokens
-     :system_prompt       system-prompt
-     :user_prompt         user-prompt}))
+     :input-tokens        input-tokens
+     :input-cached-tokens input-cached-tokens
+     :output-tokens       output-tokens
+     :system-prompt       system-prompt
+     :user-prompt         user-prompt
+     :usage-opts          usage-opt}))
 
 (defrecord ExampleGeminiVertexAI
   [^Client client
@@ -69,12 +70,8 @@
   (get-model-id [_] model-id)
 
   (run-inference [this system-prompt user-prompt]
-    (run-inference-unsafe this system-prompt user-prompt)
-    #_(try
-      (run-inference-unsafe this system-prompt user-prompt)
-      (catch Exception e
-        (log/error (str "Exception: " (.getMessage e)))
-        nil))))
+    ;; TODO: Add retries and consider handling exceptions
+    (run-inference-unsafe this system-prompt user-prompt)))
 
 (defn make-example-gemini-vertexai
   [{:keys [client
@@ -113,7 +110,7 @@
                               (.build)))
 
         http-options    (-> (HttpOptions/builder)
-                            (.timeout (int timeout-seconds))
+                            (.timeout (int (* timeout-seconds 1000)))
                             (.build))
         client          (or client
                             (-> (Client/builder)
