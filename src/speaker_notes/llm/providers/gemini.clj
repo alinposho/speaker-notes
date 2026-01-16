@@ -23,25 +23,25 @@
 
 (defn- run-inference-unsafe [wrapper system-prompt user-prompt]
   (let [{:keys [client model-id max-output-tokens temperature tool thinking-config]} wrapper
-        prompt              (str system-prompt "\n" user-prompt)
-        cfg                 (-> (GenerateContentConfig/builder)
-                                (.temperature (float temperature))
-                                (.maxOutputTokens (int max-output-tokens))
-                                (.thinkingConfig thinking-config)
-                                (#(if tool
-                                    (do (.tools % (into-array Tool [tool])) %)
-                                    %))
-                                (.responseMimeType "text/plain")
-                                (.build))
-        resp                (.generateContent (.-models client) model-id prompt cfg)
-        result              (providers.core/extract-response (.text resp))
+        prompt (str system-prompt "\n" user-prompt)
+        cfg (-> (GenerateContentConfig/builder)
+                (.temperature (float temperature))
+                (.maxOutputTokens (int max-output-tokens))
+                (.thinkingConfig thinking-config)
+                (#(if tool
+                    (do (.tools % (into-array Tool [tool])) %)
+                    %))
+                (.responseMimeType "text/plain")
+                (.build))
+        resp (.generateContent (.-models client) model-id prompt cfg)
+        result (providers.core/extract-response (.text resp))
 
-        usage-opt           (.usageMetadata resp)
-        usage               (.orElse usage-opt nil)
+        usage-opt (.usageMetadata resp)
+        usage (.orElse usage-opt nil)
 
-        input-tokens        (some-> usage (.promptTokenCount) (.orElse nil))
+        input-tokens (some-> usage (.promptTokenCount) (.orElse nil))
         input-cached-tokens (some-> usage (.cachedContentTokenCount) (.orElse nil))
-        output-tokens       (some-> usage (.candidatesTokenCount) (.orElse nil))]
+        output-tokens (some-> usage (.candidatesTokenCount) (.orElse nil))]
 
     (when-not result
       (log/error (format "JSON parsing failed for model %s. Raw content: %s..."
@@ -70,7 +70,7 @@
   (get-model-id [_] model-id)
 
   (run-inference [this system-prompt user-prompt]
-    ;; TODO: Add retries and consider handling exceptions
+   ;; TODO: Add retries and consider handling exceptions
     (run-inference-unsafe this system-prompt user-prompt)))
 
 (defn make-example-gemini-vertexai
@@ -96,10 +96,10 @@
 
   (log/info (str "Initializing ExampleGeminiVertexAI LLM client wrapper with: args" args))
 
-  (let [tool            (when (and tools (some #{"web_search"} tools))
-                          (-> (Tool/builder)
-                              (.googleSearch (GoogleSearch/builder))
-                              (.build)))
+  (let [tool (when (and tools (some #{"web_search"} tools))
+               (-> (Tool/builder)
+                   (.googleSearch (GoogleSearch/builder))
+                   (.build)))
 
         thinking-budget (get-thinking-budget model-id reasoning-effort)
         thinking-config (when (pos? thinking-budget)
@@ -109,15 +109,15 @@
                               (.thinkingBudget (int thinking-budget))
                               (.build)))
 
-        http-options    (-> (HttpOptions/builder)
-                            (.timeout (int (* timeout-seconds 1000)))
-                            (.build))
-        client          (or client
-                            (-> (Client/builder)
-                                (.vertexAI true)
-                                (#(if project-id (.project % project-id) %))
-                                (#(if location (.location % location) %))
-                                (.httpOptions http-options)
-                                (.build)))]
+        http-options (-> (HttpOptions/builder)
+                         (.timeout (int (* timeout-seconds 1000)))
+                         (.build))
+        client (or client
+                   (-> (Client/builder)
+                       (.vertexAI true)
+                       (.project project-id)
+                       (.project location)
+                       (.httpOptions http-options)
+                       (.build)))]
 
     (->ExampleGeminiVertexAI client model-id max-output-tokens temperature reasoning-effort tool thinking-config)))
