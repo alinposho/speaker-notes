@@ -24,15 +24,14 @@
 (defn- run-inference-unsafe [wrapper system-prompt user-prompt]
   (let [{:keys [client model-id max-output-tokens temperature tool ^ThinkingConfig thinking-config]} wrapper
         prompt (str system-prompt "\n" user-prompt)
-        cfg (-> (GenerateContentConfig/builder)
-                (.temperature (float temperature))
-                (.maxOutputTokens (int max-output-tokens))
-                (.thinkingConfig thinking-config)
-                (#(if tool
-                    (do (.tools % (into-array Tool [tool])) %)
-                    %))
-                (.responseMimeType "text/plain")
-                (.build))
+        cfg-builder (-> (GenerateContentConfig/builder)
+                        (.temperature (float temperature))
+                        (.maxOutputTokens (int max-output-tokens))
+                        (.thinkingConfig thinking-config)
+                        (.responseMimeType "text/plain"))
+        cfg (cond-> cfg-builder
+                tool (.tools (into-array Tool [tool]))
+                :always (.build))
         resp (.generateContent (.-models client) ^String model-id ^String prompt ^GenerateContentConfig cfg)
         result (providers.core/extract-response (.text resp))
 

@@ -1,5 +1,9 @@
 (ns gemini-sample
-  (:require [speaker-notes.llm.api :as llm-api]
+  (:require [mount.core :as mount]
+            [speaker-notes.config :as config]
+            [speaker-notes.corrections :as corrections]
+            [speaker-notes.llm.api :as llm-api]
+            [speaker-notes.llm.core :refer [llm-client]]
             [speaker-notes.llm.providers.gemini :as gemini]))
 
 
@@ -25,4 +29,10 @@
  (some-> uo
          (.orElse nil)
          (.promptTokenCount)
-         (.orElse nil)))
+         (.orElse nil))
+
+
+ ;;;; Test the speaker notes checker
+ (mount/start #'speaker-notes.llm.core/llm-client)
+ (corrections/suggest-correction llm-client (config/load-resource "speaker_notes/notes_samples/bicycle_revolution.txt"))
+ )

@@ -10,7 +10,8 @@
                  [mount "0.1.18"]
                  [org.slf4j/slf4j-api "2.0.17"]
                  [ring/ring-defaults "0.7.0"]
-                 [ring/ring-jetty-adapter "1.10.0"]]
+                 [ring/ring-jetty-adapter "1.10.0"]
+                 [selmer "1.12.70"]]
   :plugins [[lein-ring "0.12.6"]]
   :ring {:handler speaker-notes.handler/app}
   :main speaker-notes.core
