@@ -28,11 +28,12 @@
  (restart)
 
 
- (def res (let [body-str (json/generate-string {:notes (config/load-resource "speaker_notes/notes_samples/bicycle_revolution.txt")})]
-            (http/post "http://localhost:3000/suggest-correction"
-                       {:content-type     :json
-                        :body             body-str
-                        :throw-exceptions false})))
+ (def res (time
+           (let [body-str (json/generate-string {:notes (config/load-resource "speaker_notes/notes_samples/bicycle_revolution.txt")})]
+             (http/post "http://localhost:3000/suggest-correction"
+                        {:content-type     :json
+                         :body             body-str
+                         :throw-exceptions false}))))
  res
 
  (-> res
