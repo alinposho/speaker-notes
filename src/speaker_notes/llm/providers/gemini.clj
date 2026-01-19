@@ -9,8 +9,6 @@
            (com.google.genai.types GenerateContentConfig GenerateContentResponseUsageMetadata GoogleSearch HttpOptions ThinkingConfig Tool)))
 
 
-;; ---- constants -------------------------------------------------------------
-
 (def gemini-3-pro-preview "gemini-3-pro-preview")
 
 (def reasoning-effort->thinking-budget
@@ -30,8 +28,8 @@
                         (.thinkingConfig thinking-config)
                         (.responseMimeType "text/plain"))
         cfg (cond-> cfg-builder
-                tool (.tools (into-array Tool [tool]))
-                :always (.build))
+                    tool (.tools (into-array Tool [tool]))
+                    :always (.build))
         resp (.generateContent (.-models client) ^String model-id ^String prompt ^GenerateContentConfig cfg)
         result (providers.core/extract-response (.text resp))
 

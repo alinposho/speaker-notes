@@ -41,3 +41,4 @@ LLM API keys are read from environment variables or the .env file that should be
 ## Frontend
 
 For now the frontend is just a template, i.e. no implementation.
+1
