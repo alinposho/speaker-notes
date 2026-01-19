@@ -17,6 +17,5 @@
 
 (def app
   (-> app-routes
-      #_(wrap-defaults site-defaults)
       (wrap-json-response)
       (wrap-json-body {:keywords? true})))
