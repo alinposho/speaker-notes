@@ -6,7 +6,7 @@
             [speaker-notes.llm.providers.core :as providers.core])
   (:import (com.google.genai Client)
            (com.google.genai.types ThinkingConfig Tool)
-           (com.google.genai.types GenerateContentConfig GoogleSearch HttpOptions ThinkingConfig Tool)))
+           (com.google.genai.types GenerateContentConfig GenerateContentResponseUsageMetadata GoogleSearch HttpOptions ThinkingConfig Tool)))
 
 
 ;; ---- constants -------------------------------------------------------------
@@ -22,7 +22,7 @@
   (long (get-in reasoning-effort->thinking-budget [reasoning-effort model-name] 0)))
 
 (defn- run-inference-unsafe [wrapper system-prompt user-prompt]
-  (let [{:keys [client model-id max-output-tokens temperature tool thinking-config]} wrapper
+  (let [{:keys [client model-id max-output-tokens temperature tool ^ThinkingConfig thinking-config]} wrapper
         prompt (str system-prompt "\n" user-prompt)
         cfg (-> (GenerateContentConfig/builder)
                 (.temperature (float temperature))
@@ -33,11 +33,11 @@
                     %))
                 (.responseMimeType "text/plain")
                 (.build))
-        resp (.generateContent (.-models client) model-id prompt cfg)
+        resp (.generateContent (.-models client) ^String model-id ^String prompt ^GenerateContentConfig cfg)
         result (providers.core/extract-response (.text resp))
 
         usage-opt (.usageMetadata resp)
-        usage (.orElse usage-opt nil)
+        ^GenerateContentResponseUsageMetadata usage (.orElse usage-opt nil)
 
         input-tokens (some-> usage (.promptTokenCount) (.orElse nil))
         input-cached-tokens (some-> usage (.cachedContentTokenCount) (.orElse nil))
@@ -81,7 +81,7 @@
            reasoning-effort
            tools
            timeout-seconds
-           project-id
+           api-key
            location]
     :or   {client            nil
            model-id          gemini-3-pro-preview
@@ -90,7 +90,7 @@
            reasoning-effort  :medium
            tools             nil
            timeout-seconds   300
-           project-id        (config/env "GCP_PROJECT_ID")
+           api-key           (config/env "VERTEX_AI_API_KEY")
            location          "global"}
     :as   args}]
 
@@ -115,8 +115,7 @@
         client (or client
                    (-> (Client/builder)
                        (.vertexAI true)
-                       (.project project-id)
-                       (.project location)
+                       (.apiKey api-key)
                        (.httpOptions http-options)
                        (.build)))]
 

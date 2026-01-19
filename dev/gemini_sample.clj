@@ -5,6 +5,10 @@
 
 (comment
 
+ (require '[speaker-notes.config :as config])
+ (config/env "VERTEX_AI_API_KEY")
+
+
  (def client (gemini/make-example-gemini-vertexai {}))
 
  (def res (time
