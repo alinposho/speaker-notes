@@ -17,6 +17,7 @@
 
 
 (defn suggest-correction [llm-client speaker-notes]
+  (log/info "Finding issues with speaker notes.")
   (let [system-prompt meeting-notes-system-prompt
         user-prompt (user-template speaker-notes)
         inference-result (llm/run-inference llm-client system-prompt user-prompt)]
