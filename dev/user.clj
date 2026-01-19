@@ -38,6 +38,4 @@
 
  (-> res
      :body
-     (json/parse-string true))
-
- )
+     (json/parse-string true)))

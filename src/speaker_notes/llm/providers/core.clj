@@ -24,14 +24,6 @@
                       {:raw-content content})))))
 
 (defn extract-response
-  "
-  - If ```json ... ``` blocks exist, parse the *last* one.
-  - Else if content looks like a bare object/array, parse it.
-  - Else return nil (or throw if you prefer).
-  - Returns Clojure.
-
-  Optional opts:
-  - :keywordize? (default false) -> pass true to keywordize keys."
   ([content] (extract-response content {:keywordize? true}))
   ([content {:keys [keywordize?] :or {keywordize? true}}]
    (when (some? content)
