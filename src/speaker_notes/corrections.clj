@@ -24,9 +24,3 @@
     (log/info (str "Suggested corrections expended tokens"
                    (select-keys inference-result #{:input-tokens :input-cached-tokens :output-tokens})))
     (:result inference-result)))
-
-
-(comment
-
- (user-template "Some speaker notes")
- )
